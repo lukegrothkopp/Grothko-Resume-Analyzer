@@ -13,6 +13,7 @@ __pycache__/
 
 # app data
 chroma_store/
+chroma_jd/
 uploads/
 tmp/
 *.tmp
