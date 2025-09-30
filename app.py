@@ -1,39 +1,60 @@
-import streamlit as st
-from resume_processor import load_resume, analyze_resume, store_to_vectorstore, run_self_query
 import os
+import tempfile
+from pathlib import Path
+import streamlit as st
 
-st.set_page_config(page_title="AI Resume Screener")
+from resume_processor import (
+    load_resume,
+    analyze_resume,
+    store_to_vectorstore,
+    run_self_query,
+)
+
+st.set_page_config(page_title="AI Resume Screener", page_icon="🧠", layout="wide")
 st.title("AI Resume Screener")
+st.caption("Upload a resume, analyze it against a job description, and search across stored resumes.")
 
-st.markdown("Upload a resume and analyze it using AI. Then run smart searches over previous resumes.")
+# --- Key check (works with Streamlit Secrets or local .env) ---
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY", "")
+if not OPENAI_API_KEY:
+    st.warning("OpenAI API key not found. Add it in Streamlit Secrets or .env for full functionality.")
 
-job_desc = st.text_area("📋 Paste Job Description")
+# --- Inputs ---
+job_desc = st.text_area("📋 Paste Job Description", height=180, placeholder="Paste the job description here...")
 uploaded_file = st.file_uploader("📎 Upload Resume (PDF, DOCX, or TXT)", type=["pdf", "docx", "txt"])
 
-if st.button("Analyze & Store") and uploaded_file and job_desc:
-    with open(uploaded_file.name, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+colA, colB = st.columns([1, 1])
 
-    with st.spinner("Analyzing & Storing Resume..."):
-        docs = load_resume(uploaded_file.name)
-        report = analyze_resume(docs, job_desc)
-        store_to_vectorstore(docs)
-        st.success("✅ Analysis complete and stored!")
+with colA:
+    if st.button("Analyze & Store", use_container_width=True) and uploaded_file and job_desc:
+        # Save uploaded file to a temp path
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{uploaded_file.name}") as tmp:
+            tmp.write(uploaded_file.getbuffer())
+            tmp_path = tmp.name
 
+        with st.spinner("Analyzing & storing resume..."):
+            docs = load_resume(tmp_path)
+            report = analyze_resume(docs, job_desc)
+            store_to_vectorstore(docs, persist_directory="chroma_store")
+
+        st.success("✅ Analysis complete and stored.")
         st.subheader("📄 AI Resume Summary")
         st.write(report)
         st.download_button("📥 Download Report", report, file_name="resume_analysis.txt")
 
-st.divider()
-st.subheader("🔎 Ask Anything About Stored Resumes")
-query = st.text_input("Type your smart query here (e.g., 'Python developer with AWS')")
-
-if st.button("Search Resumes") and query:
-    with st.spinner("Searching..."):
-        results = run_self_query(query)
+with colB:
+    st.subheader("🔎 Ask Anything About Stored Resumes")
+    query = st.text_input("Enter a smart query (e.g., 'Python developer with AWS and Kubernetes')")
+    if st.button("Search Resumes", use_container_width=True) and query:
+        with st.spinner("Searching..."):
+            results = run_self_query(query, persist_directory="chroma_store", k=5)
         if results:
             for i, res in enumerate(results, 1):
-                st.markdown(f"**Result {i}:**")
+                st.markdown(f"**Result {i}**")
                 st.write(res.page_content.strip())
+                meta = res.metadata or {}
+                if meta:
+                    st.caption(f"Source: {meta.get('source','unknown')}")
+                st.divider()
         else:
-            st.warning("No matches found.")
+            st.warning("No matches found. Try a broader query or upload more resumes.")
