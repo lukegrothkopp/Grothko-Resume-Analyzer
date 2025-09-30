@@ -1,0 +1,22 @@
+# secrets & env
+.env
+*.env
+.streamlit/secrets.toml
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.cache/
+
+# app data
+chroma_store/
+uploads/
+tmp/
+*.tmp
+
+# OS/editor noise
+.DS_Store
+.vscode/
