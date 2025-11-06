@@ -12,7 +12,7 @@ from resume_processor import (
     store_job_description,
 )
 
-st.set_page_config(page_title="AI Resume Screener", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="Grothko AI Resume Screener", page_icon="🧠", layout="wide")
 st.title("AI Resume Screener")
 st.caption("Upload a resume, analyze it against a job description, filter relevant chunks, and search across stored resumes.")
 
