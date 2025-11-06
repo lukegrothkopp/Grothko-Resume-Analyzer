@@ -12,6 +12,14 @@ from resume_processor import (
     store_job_description,
 )
 
+# Resolve repo-relative path to the logo
+REPO_DIR = Path(__file__).parent
+LOGO_PATH = REPO_DIR / "assets" / "header_logo.png"   # <-- your file in the repo
+
+# Helper: return a usable icon value for Streamlit (path if exists, else emoji)
+def page_icon_value():
+    return str(LOGO_PATH) if LOGO_PATH.exists() else "🧠"
+
 st.set_page_config(page_title="Grothko AI Resume Screener", page_icon="🧠", layout="wide")
 st.title("AI Resume Screener")
 st.caption("Upload a resume, analyze it against a job description, filter relevant chunks, and search across stored resumes.")
