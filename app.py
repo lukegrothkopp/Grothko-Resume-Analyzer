@@ -45,7 +45,7 @@ st.markdown("""
 logo_src = str(LOGO_PATH) if LOGO_PATH.exists() else None
 
 # Build header row
-c1, c2 = st.columns([0.08, 0.92])
+c1, c2 = st.columns([0.05, 0.92])
 with c1:
     if logo_src:
         st.image(logo_src, width=62)
