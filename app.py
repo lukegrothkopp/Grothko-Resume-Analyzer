@@ -26,10 +26,16 @@ st.markdown("""
 /* Give the main container more breathing room at the top */
 .block-container { padding-top: 4.5rem !important; }
 
-/* (optional) nudge the header down a touch more */
-.app-header { margin-top: 6px; }
+#.app-header { margin-top: 6px; }
 
-/* Mobile: slightly less padding so you don't waste space */
+.app-title {
+  font-size: 2.1rem;   /* was 1.8rem */
+  font-weight: 800;    /* a touch bolder looks nice */
+  line-height: 1.2;    /* keeps multi-line titles tight */
+  margin: 0;
+}
+
+/* Mobile: slightly less padding so we don't waste space */
 @media (max-width: 680px) {
   .block-container { padding-top: 3.2rem !important; }
 }
