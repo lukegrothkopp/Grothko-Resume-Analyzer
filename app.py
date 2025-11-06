@@ -21,7 +21,7 @@ def page_icon_value():
     return str(LOGO_PATH) if LOGO_PATH.exists() else "🧠"
 
 st.set_page_config(page_title="Grothko AI Resume Screener", page_icon=page_icon_value(), layout="wide")
-st.title(page_icon=page_icon_value(), "AI Resume Screener")
+st.title("Grothko AI Resume Screener")
 st.caption("Upload a resume, analyze it against a job description, filter relevant chunks, and search across stored resumes.")
 
 # --- Key check (works with Streamlit Secrets or local .env) ---
