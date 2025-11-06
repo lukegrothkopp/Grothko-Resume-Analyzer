@@ -42,7 +42,7 @@ logo_src = str(LOGO_PATH) if LOGO_PATH.exists() else None
 c1, c2 = st.columns([0.08, 0.92])
 with c1:
     if logo_src:
-        st.image(logo_src, width=42)
+        st.image(logo_src, width=52)
     else:
         st.markdown("🧠", unsafe_allow_html=True)
 with c2:
