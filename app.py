@@ -21,8 +21,39 @@ def page_icon_value():
     return str(LOGO_PATH) if LOGO_PATH.exists() else "🧠"
 
 st.set_page_config(page_title="Grothko AI Resume Screener", page_icon=page_icon_value(), layout="wide")
-st.title("Grothko AI Resume Screener")
-st.caption("Upload a resume, analyze it against a job description, filter relevant chunks, and search across stored resumes.")
+# ---- Compact header with logo + title ----
+st.markdown("""
+<style>
+/* tighten top padding a bit */
+.block-container { padding-top: 1.2rem; }
+/* header row */
+.app-header { display:flex; align-items:center; gap:12px; }
+.app-title { font-size: 1.8rem; font-weight: 700; margin: 0; }
+.app-sub { margin: 2px 0 0 0; color: rgba(49,51,63,0.7); font-size: 0.95rem; }
+</style>
+""", unsafe_allow_html=True)
+
+logo_src = str(LOGO_PATH) if LOGO_PATH.exists() else None
+
+# Build header row
+c1, c2 = st.columns([0.08, 0.92])
+with c1:
+    if logo_src:
+        st.image(logo_src, width=42)
+    else:
+        st.markdown("🧠", unsafe_allow_html=True)
+with c2:
+    st.markdown(
+        f"""
+        <div class="app-header">
+            <div>
+                <div class="app-title">Grothko AI Resume Screener</div>
+                <div class="app-sub">Upload a resume, analyze it against a job description, filter relevant chunks, and search across stored resumes.</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # --- Key check (works with Streamlit Secrets or local .env) ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY", "")
