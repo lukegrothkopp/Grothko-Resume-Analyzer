@@ -1,15 +1,18 @@
 # ===================== resume_processor.py =====================
 import os
+from compat_langchain import (
+    RecursiveCharacterTextSplitter,
+    FAISS,
+    PyPDFLoader,
+    Docx2txtLoader,
+    TextLoader,
+    OpenAIEmbeddings,
+    ChatOpenAI,
+)
 from pathlib import Path
 from typing import List, Tuple, Dict, Any
 import numpy as np
 from dotenv import load_dotenv
-
-from langchain_community.document_loaders import (
-    PyPDFLoader,
-    Docx2txtLoader,
-    TextLoader,
-)
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
