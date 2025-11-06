@@ -21,15 +21,18 @@ def page_icon_value():
     return str(LOGO_PATH) if LOGO_PATH.exists() else "🧠"
 
 st.set_page_config(page_title="Grothko AI Resume Screener", page_icon=page_icon_value(), layout="wide")
-# ---- Compact header with logo + title ----
 st.markdown("""
 <style>
-/* tighten top padding a bit */
-.block-container { padding-top: 1.2rem; }
-/* header row */
-.app-header { display:flex; align-items:center; gap:12px; }
-.app-title { font-size: 1.8rem; font-weight: 700; margin: 0; }
-.app-sub { margin: 2px 0 0 0; color: rgba(49,51,63,0.7); font-size: 0.95rem; }
+/* Give the main container more breathing room at the top */
+.block-container { padding-top: 4.5rem !important; }
+
+/* (optional) nudge the header down a touch more */
+.app-header { margin-top: 6px; }
+
+/* Mobile: slightly less padding so you don't waste space */
+@media (max-width: 680px) {
+  .block-container { padding-top: 3.2rem !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
