@@ -1,5 +1,13 @@
 # ===================== resume_processor.py =====================
+from __future__ import annotations
 import os
+from pathlib import Path
+from typing import List, Tuple, Dict, Any
+
+import numpy as np
+from dotenv import load_dotenv
+
+# Use our compatibility shim so the code works across LangChain versions
 from compat_langchain import (
     RecursiveCharacterTextSplitter,
     FAISS,
@@ -9,16 +17,14 @@ from compat_langchain import (
     OpenAIEmbeddings,
     ChatOpenAI,
 )
-from pathlib import Path
-from typing import List, Tuple, Dict, Any
-import numpy as np
-from dotenv import load_dotenv
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+
 from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Optional: fail fast if missing
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY is not set")
 
 # ---- Global LLM + Embeddings ----
 embeddings = OpenAIEmbeddings()
