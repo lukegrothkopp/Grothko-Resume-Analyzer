@@ -256,9 +256,27 @@ def compute_fit_scores(
     }
 
 # ----------------- simple search on stored resumes -----------------
-def run_self_query(query: str, persist_directory: str = "chroma_store", k: int = 4):
-    vectordb = Chroma(
-        persist_directory=str(persist_directory),
-        embedding_function=embeddings,
-    )
+from pathlib import Path
+from typing import List
+from langchain_core.documents import Document  # or from langchain.schema import Document depending on your compat shim
+
+def run_self_query(query: str, persist_directory: str = "chroma_store", k: int = 4) -> List["Document"]:
+    persist_dir = Path(persist_directory)
+
+    # If no index dir yet, just say "no results"
+    if not persist_dir.exists() or not any(persist_dir.iterdir()):
+        return []
+
+    try:
+        vectordb = Chroma(
+            persist_directory=str(persist_dir),
+            embedding_function=embeddings,
+        )
+    except ImportError as e:
+        # Friendlier error than the deep stack trace
+        raise RuntimeError(
+            "Chroma backend not available. Make sure 'chromadb' is listed in requirements.txt."
+        ) from e
+
     return vectordb.similarity_search(query, k=k)
+
