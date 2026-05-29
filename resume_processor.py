@@ -18,7 +18,6 @@ from compat_langchain import (
     ChatOpenAI,
 )
 
-from langchain_community.vectorstores import Chroma
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -115,19 +114,49 @@ Chunk Analyses (raw):
     final = llm.invoke(synthesis_prompt).content.strip()
     return chunk_analyses, final
 
+# ----------------- persistence helpers (FAISS local index) -----------------
+def _faiss_index_exists(persist_dir: Path) -> bool:
+    """FAISS save_local creates index.faiss and index.pkl."""
+    return (persist_dir / "index.faiss").exists() and (persist_dir / "index.pkl").exists()
+
+
+def _load_or_create_faiss(texts: List[str], metadatas: List[Dict[str, Any]], persist_dir: Path):
+    """
+    Load an existing FAISS index and append texts, or create a new one.
+    allow_dangerous_deserialization=True is required by LangChain because FAISS
+    stores the local docstore in a pickle file. Only load indexes created by this app.
+    """
+    if _faiss_index_exists(persist_dir):
+        vectordb = FAISS.load_local(
+            str(persist_dir),
+            embeddings,
+            allow_dangerous_deserialization=True,
+        )
+        vectordb.add_texts(texts=texts, metadatas=metadatas)
+    else:
+        vectordb = FAISS.from_texts(
+            texts=texts,
+            embedding=embeddings,
+            metadatas=metadatas,
+        )
+
+    vectordb.save_local(str(persist_dir))
+    return vectordb
+
+
 # ----------------- persistence (resume chunks) -----------------
 def store_to_vectorstore(
     docs,
-    persist_directory: str = "chroma_store",
+    persist_directory: str = "faiss_store",
     filter_job_description: str = None,
     top_k: int = 0,
     min_sim: float = None
 ) -> Dict[str, Any]:
     """
-    Stores resume chunks in Chroma with optional filtering based on similarity
-    to the job description (using OpenAI embeddings).
+    Stores resume chunks in a local FAISS index with optional filtering based on
+    similarity to the job description using OpenAI embeddings.
 
-    filter_job_description: if provided, chunks are ranked by cosine sim to JD
+    filter_job_description: if provided, chunks are ranked by cosine similarity to JD
     top_k: keep only the top_k most similar chunks (if > 0)
     min_sim: keep only chunks with cosine similarity >= min_sim (0-1)
 
@@ -136,8 +165,12 @@ def store_to_vectorstore(
     persist_dir = Path(persist_directory)
     persist_dir.mkdir(parents=True, exist_ok=True)
 
-    chunks = split_docs(docs, chunk_size=1000, chunk_overlap=120)
+    original_chunks = split_docs(docs, chunk_size=1000, chunk_overlap=120)
+    chunks = original_chunks
     texts = [c.page_content for c in chunks]
+
+    if not texts:
+        return {"stored": 0, "total": 0, "filtered": 0}
 
     sims = None
     kept_idx = list(range(len(texts)))
@@ -165,6 +198,13 @@ def store_to_vectorstore(
         texts = [texts[i] for i in kept_idx]
         chunks = [chunks[i] for i in kept_idx]
 
+    if not texts:
+        return {
+            "stored": 0,
+            "total": len(original_chunks),
+            "filtered": len(original_chunks),
+        }
+
     metadatas = []
     for i, c in enumerate(chunks):
         base = {"source": f"resume_chunk_{i}"}
@@ -172,18 +212,12 @@ def store_to_vectorstore(
             base["jd_similarity"] = float(sims[kept_idx[i]])
         metadatas.append(base)
 
-    vectordb = Chroma.from_texts(
-        texts=texts,
-        embedding=embeddings,
-        metadatas=metadatas,
-        persist_directory=str(persist_dir),
-    )
-    vectordb.persist()
+    _load_or_create_faiss(texts, metadatas, persist_dir)
 
     stats = {
         "stored": len(texts),
-        "total": len(split_docs(docs)),  # original chunk count
-        "filtered": len(split_docs(docs)) - len(texts),
+        "total": len(original_chunks),
+        "filtered": len(original_chunks) - len(texts),
     }
     if sims is not None and len(kept_idx) > 0:
         kept_sims = sims[kept_idx]
@@ -192,28 +226,24 @@ def store_to_vectorstore(
         stats["max_sim_kept"] = float(np.max(kept_sims))
     return stats
 
+
 # ----------------- job description store -----------------
 def store_job_description(
     job_description: str,
     label: str = "Job",
-    persist_directory: str = "chroma_jd"
+    persist_directory: str = "faiss_jd"
 ) -> Dict[str, Any]:
     """
-    Stores the full job description as a single doc in its own Chroma index,
-    so you can cross-search by resume text later if desired.
+    Stores the full job description as a single doc in its own local FAISS index.
     """
     persist_dir = Path(persist_directory)
     persist_dir.mkdir(parents=True, exist_ok=True)
 
     texts = [job_description]
-    metadatas = [{"label": label}]
-    vectordb = Chroma.from_texts(
-        texts=texts,
-        embedding=embeddings,
-        metadatas=metadatas,
-        persist_directory=str(persist_dir),
-    )
-    vectordb.persist()
+    metadatas = [{"label": label, "source": "job_description"}]
+
+    _load_or_create_faiss(texts, metadatas, persist_dir)
+
     return {"stored": 1, "label": label}
 
 # ----------------- cross-search fit score -----------------
@@ -256,27 +286,20 @@ def compute_fit_scores(
     }
 
 # ----------------- simple search on stored resumes -----------------
-from pathlib import Path
-from typing import List
-from langchain_core.documents import Document  # or from langchain.schema import Document depending on your compat shim
+from langchain_core.documents import Document
 
-def run_self_query(query: str, persist_directory: str = "chroma_store", k: int = 4) -> List["Document"]:
+
+def run_self_query(query: str, persist_directory: str = "faiss_store", k: int = 4) -> List["Document"]:
     persist_dir = Path(persist_directory)
 
     # If no index dir yet, just say "no results"
-    if not persist_dir.exists() or not any(persist_dir.iterdir()):
+    if not _faiss_index_exists(persist_dir):
         return []
 
-    try:
-        vectordb = Chroma(
-            persist_directory=str(persist_dir),
-            embedding_function=embeddings,
-        )
-    except ImportError as e:
-        # Friendlier error than the deep stack trace
-        raise RuntimeError(
-            "Chroma backend not available. Make sure 'chromadb' is listed in requirements.txt."
-        ) from e
+    vectordb = FAISS.load_local(
+        str(persist_dir),
+        embeddings,
+        allow_dangerous_deserialization=True,
+    )
 
     return vectordb.similarity_search(query, k=k)
-
