@@ -105,7 +105,7 @@ if analyze_clicked and uploaded_file and job_desc:
         chunk_analyses, final_report = analyze_resume(docs, job_desc)
 
     # Optional: store job description (for organization/traceability)
-    store_job_description(job_desc, label=job_title, persist_directory="chroma_jd")
+    store_job_description(job_desc, label=job_title, persist_directory="faiss_jd")
 
     # Compute vector-based fit score vs JD
     fit = compute_fit_scores(job_desc, docs, top_k=5)
@@ -114,7 +114,7 @@ if analyze_clicked and uploaded_file and job_desc:
     with st.spinner("Storing resume chunks..."):
         stats = store_to_vectorstore(
             docs,
-            persist_directory="chroma_store",
+            persist_directory="faiss_store",
             filter_job_description=job_desc if only_best else None,
             top_k=top_k if only_best else 0,
             min_sim=min_sim if only_best else None,
@@ -148,7 +148,7 @@ st.subheader("🔎 Ask Anything About Stored Resumes")
 query = st.text_input("Enter a smart query (e.g., 'Python developer with AWS and Kubernetes')")
 if st.button("Search Resumes", use_container_width=True) and query:
     with st.spinner("Searching..."):
-        results = run_self_query(query, persist_directory="chroma_store", k=5)
+        results = run_self_query(query, persist_directory="faiss_store", k=5)
     if results:
         for i, res in enumerate(results, 1):
             st.markdown(f"**Result {i}**")
